@@ -4,6 +4,7 @@ import os
 import base64
 import json
 import time
+from flask import request
 
 from gevent.pywsgi import WSGIServer
 from twilio.rest import Client
@@ -14,15 +15,6 @@ import audioop
 
 from llm_convo.audio_input import WhisperTwilioStream
 
-
-XML_MEDIA_STREAM = """
-<Response>
-    <Start>
-        <Stream name="Audio Stream" url="wss://{host}/audiostream" />
-    </Start>
-    <Pause length="60"/>
-</Response>
-"""
 
 
 class TwilioServer:
@@ -46,22 +38,50 @@ class TwilioServer:
 
         @self.app.route("/incoming-voice", methods=["POST"])
         def incoming_voice():
+            XML_MEDIA_STREAM = """
+                                <Response>
+                                    <Start>
+                                        <Stream name="Audio Stream" url="wss://{host}/audiostream_outbound" />
+                                    </Start>
+                                    <Pause length="60"/>
+                                </Response>
+                                """
             return XML_MEDIA_STREAM.format(host=self.remote_host)
 
-        @self.sock.route("/audiostream", websocket=True)
-        def on_media_stream(ws):
+        @self.app.route("/start-call", methods=["POST"])
+        def start_call():
+            phone_number = request.json.get('phone_number')
+
+            XML_MEDIA_STREAM = """
+                                <Response>
+                                    <Start>
+                                        <Stream name="Audio Stream" url="wss://{host}/audiostream_inbound" />
+                                    </Start>
+                                    <Pause length="60"/>
+                                </Response>
+                                """
+            call = self.client.calls.create(twiml=XML_MEDIA_STREAM.format(host=self.remote_host),
+                                            to=phone_number,
+                                            from_=self.from_phone)
+            return {"message": "Call initiated", "call_sid": call.sid}, 200
+        
+
+        @self.sock.route("/audiostream_inbound", websocket=True)
+        def on_media_stream_inbound(ws):
             session = TwilioCallSession(ws, self.client, remote_host=self.remote_host, static_dir=self.static_dir)
             if self.on_session is not None:
-                thread = threading.Thread(target=self.on_session, args=(session,))
+                thread = threading.Thread(target=self.on_session, args=(session, True))
                 thread.start()
             session.start_session()
 
-    def start_call(self, to_phone: str):
-        self.client.calls.create(
-            twiml=XML_MEDIA_STREAM.format(host=self.remote_host),
-            to=to_phone,
-            from_=self.from_phone,
-        )
+        @self.sock.route("/audiostream_outbound", websocket=True)
+        def on_media_stream_outbound(ws):
+            session = TwilioCallSession(ws, self.client, remote_host=self.remote_host, static_dir=self.static_dir)
+            if self.on_session is not None:
+                thread = threading.Thread(target=self.on_session, args=(session,False))
+                thread.start()
+            session.start_session()
+
 
     def _start(self):
         logging.info("Starting Twilio Server")

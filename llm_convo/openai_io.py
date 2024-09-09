@@ -1,8 +1,9 @@
 from typing import List, Optional
 import os
-import openai
+from openai import OpenAI
 
-openai.api_key = os.environ["OPENAI_API_KEY"]
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
 
 
 class OpenAIChatCompletion:
@@ -16,8 +17,6 @@ class OpenAIChatCompletion:
         ]
         for i, text in enumerate(reversed(transcript)):
             messages.insert(1, {"role": "user" if i % 2 == 0 else "assistant", "content": text})
-        output = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo" if self.model is None else self.model,
-            messages=messages,
-        )
-        return output["choices"][0]["message"]["content"]
+        output = client.chat.completions.create(model="gpt-3.5-turbo" if self.model is None else self.model,
+        messages=messages)
+        return output.choices[0].message.content
