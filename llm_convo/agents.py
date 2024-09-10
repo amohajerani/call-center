@@ -36,12 +36,12 @@ class TerminalInPrintOut(ChatAgent):
 
 class OpenAIChat(ChatAgent):
     def __init__(self, system_prompt: str, init_phrase: Optional[str] = None, model: Optional[str] = None):
-        self.openai_chat = OpenAIChatCompletion(system_prompt=system_prompt, model=model)
+        self.llm_agent = OpenAIChatCompletion(system_prompt=system_prompt, model=model)
         self.init_phrase = init_phrase
 
     def get_response(self, transcript: List[str]) -> str:
         if len(transcript) > 0:
-            response = self.openai_chat.get_response(transcript)
+            response = self.llm_agent.get_response(transcript)
         else:
             response = self.init_phrase
         return response
@@ -58,10 +58,12 @@ class TwilioCaller(ChatAgent):
         self.speaker.text_to_mp3(text, output_fn=tts_fn)
         duration = self.speaker.get_duration(tts_fn)
         self.session.play(key, duration)
+        # uncomment the line below to use Twilio's TTS (high latency)
+        # self.session.say(text)
 
     def get_response(self, transcript: List[str]) -> str:
         if len(transcript) > 0:
             self._say(transcript[-1])
         resp = self.session.sst_stream.get_transcription()
-        self._say(self.thinking_phrase)
+        #self._say(self.thinking_phrase)
         return resp

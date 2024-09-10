@@ -138,5 +138,10 @@ class TwilioCallSession:
         )
         time.sleep(duration + 0.2)
 
+    def say(self, text: str):
+        twiml = f'<Response><Say voice="Polly.Joanna">{text}</Say><Pause length="60"/></Response>'
+        self._call.update(twiml=twiml)
+        time.sleep(len(text) * 0.1)  # Adjust this value as needed
+
     def start_session(self):
         self._read_ws()
