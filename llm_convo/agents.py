@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 from llm_convo.audio_input import WhisperMicrophone
 from llm_convo.audio_output import TTSClient, GoogleTTS
-from llm_convo.openai_io import OpenAIChatCompletion
+from llm_convo.mec_ai_io import OpenAIChatCompletion, AgenticAICompletion
 from llm_convo.twilio_io import TwilioCallSession
 
 
@@ -35,7 +35,12 @@ class TerminalInPrintOut(ChatAgent):
 
 
 class OpenAIChat(ChatAgent):
-    def __init__(self, system_prompt: str, init_phrase: Optional[str] = None, model: Optional[str] = None):
+    def __init__(
+        self,
+        system_prompt: str,
+        init_phrase: Optional[str] = None,
+        model: Optional[str] = None,
+    ):
         self.llm_agent = OpenAIChatCompletion(system_prompt=system_prompt, model=model)
         self.init_phrase = init_phrase
 
@@ -47,8 +52,31 @@ class OpenAIChat(ChatAgent):
         return response
 
 
+class AgenticAIChat(ChatAgent):
+    def __init__(
+        self,
+        system_prompt: str,
+        init_phrase: Optional[str] = None,
+        model: Optional[str] = None,
+    ):
+        self.llm_agent = AgenticAICompletion(system_prompt=system_prompt, model=model)
+        self.init_phrase = init_phrase
+
+    def get_response(self, transcript: List[str]) -> str:
+        if len(transcript) > 0:
+            response = self.llm_agent.get_response(transcript)
+        else:
+            response = self.init_phrase
+        return response
+
+
 class TwilioCaller(ChatAgent):
-    def __init__(self, session: TwilioCallSession, tts: Optional[TTSClient] = None, thinking_phrase: str = "OK"):
+    def __init__(
+        self,
+        session: TwilioCallSession,
+        tts: Optional[TTSClient] = None,
+        thinking_phrase: str = "OK",
+    ):
         self.session = session
         self.speaker = tts or GoogleTTS()
         self.thinking_phrase = thinking_phrase
@@ -65,5 +93,5 @@ class TwilioCaller(ChatAgent):
         if len(transcript) > 0:
             self._say(transcript[-1])
         resp = self.session.sst_stream.get_transcription()
-        #self._say(self.thinking_phrase)
+        # self._say(self.thinking_phrase)
         return resp

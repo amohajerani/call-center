@@ -36,23 +36,21 @@ def main(port, remote_host, start_ngrok):
 
     def run_chat(sess, outbound_call):
         if outbound_call:
-            mec_agent = OpenAIChat(
-                system_prompt="""
+            system_prompt = """
                 You are a call center agent. Your task is to call members and help them schedule appointments. \
                     Be polite, professional, and efficient. Ensure you gather all necessary information such as the preferred date, time, and type of appointment. \
                     Confirm the details with the member before ending the call.
-            """,
-                init_phrase="Hi,This is Sarah from Signify Health. You are on a recorded call. I am calling to schedule your annual wellness visit.",
-            )
+            """
+            init_phrase = "Hi,This is Sarah from Signify Health. You are on a recorded call. I am calling to schedule your annual wellness visit."
         else:
-            mec_agent = OpenAIChat(
-                system_prompt="""
+            system_prompt = """
                 You are a call center agent at Signify Health. You have received a call from a call from a member. \
                 The members usually call regarding their appointments. Your task is to answer their questions, manage their appointments, and provide them with the necessary information. \
                     
-            """,
-                init_phrase="Thank you for calling Signify. My name is Sarah. I am an AI assistant. Can you verify your name please?",
-            )
+            """
+            init_phrase = "Thank you for calling Signify. My name is Sarah. I am an AI assistant. Can you verify your name please?"
+
+        mec_agent = OpenAIChat(system_prompt=system_prompt, init_phrase=init_phrase)
         member_agent = TwilioCaller(
             sess,
             # thinking_phrase="One moment"
