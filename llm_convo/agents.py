@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 from llm_convo.audio_input import WhisperMicrophone
 from llm_convo.audio_output import TTSClient, GoogleTTS
-from llm_convo.mec_ai_io import OpenAIChatCompletion, AgenticAICompletion
+from llm_convo.mec_ai_io import OpenAIChatCompletion, LangChainAgent
 from llm_convo.twilio_io import TwilioCallSession
 
 
@@ -52,14 +52,14 @@ class OpenAIChat(ChatAgent):
         return response
 
 
-class AgenticAIChat(ChatAgent):
+class LangchainChat(ChatAgent):
     def __init__(
         self,
         system_prompt: str,
         init_phrase: Optional[str] = None,
         model: Optional[str] = None,
     ):
-        self.llm_agent = AgenticAICompletion(system_prompt=system_prompt, model=model)
+        self.llm_agent = LangChainAgent(system_prompt=system_prompt, model=model)
         self.init_phrase = init_phrase
 
     def get_response(self, transcript: List[str]) -> str:

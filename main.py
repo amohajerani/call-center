@@ -8,7 +8,7 @@ import tempfile
 import os
 import time
 import sys
-from llm_convo.agents import OpenAIChat, TwilioCaller
+from llm_convo.agents import OpenAIChat, TwilioCaller, LangchainChat
 from llm_convo.audio_input import get_whisper_model
 from llm_convo.twilio_io import TwilioServer
 from llm_convo.conversation import run_conversation
@@ -50,7 +50,7 @@ def main(port, remote_host, start_ngrok):
             """
             init_phrase = "Thank you for calling Signify. My name is Sarah. I am an AI assistant. Can you verify your name please?"
 
-        mec_agent = OpenAIChat(system_prompt=system_prompt, init_phrase=init_phrase)
+        mec_agent = LangchainChat(system_prompt=system_prompt, init_phrase=init_phrase)
         member_agent = TwilioCaller(
             sess,
             # thinking_phrase="One moment"
