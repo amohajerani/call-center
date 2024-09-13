@@ -57,13 +57,15 @@ class LangChainAgent:
         )
 
     def get_response(self, transcript: List[str]) -> str:
-        last_msg = transcript.pop()
-        chat_history = [0] * len(transcript)
-        for idx, val in enumerate(transcript):
+        last_msg = transcript[-1]
+        chat_history = []
+        for idx, val in enumerate(transcript[:-1]):
             if idx % 2 == 0:
                 chat_history.append(AIMessage(content=val))
             else:
                 chat_history.append(HumanMessage(content=val))
+        print("chat_history: ", chat_history)
+
         res = self.agent_executor.invoke(
             {"chat_history": chat_history, "input": last_msg}
         )
