@@ -37,60 +37,80 @@ class TwilioServer:
 
         @self.app.route("/incoming-voice", methods=["POST"])
         def incoming_voice():
+            phone_number = request.form.get("From")
+            phone_number = format_phone_number(phone_number)
+            print(f"Incoming call from phone number: {phone_number}")
             XML_MEDIA_STREAM = """
                                 <Response>
                                     <Start>
-                                        <Stream name="Audio Stream" url="wss://{host}/audiostream_inbound" />
+                                        <Stream name="Audio Stream" url="wss://{host}/audiostream_inbound/{phone_number}" />
                                     </Start>
                                     <Pause length="60"/>
                                 </Response>
                                 """
-            return XML_MEDIA_STREAM.format(host=self.remote_host)
+            return XML_MEDIA_STREAM.format(
+                host=self.remote_host, phone_number=phone_number
+            )
 
         @self.app.route("/start-call", methods=["POST"])
         def start_call():
             phone_number = request.json.get("phone_number")
+            phone_number = format_phone_number(phone_number)
+            print(f"Starting the call to {phone_number}")
 
             XML_MEDIA_STREAM = """
                                 <Response>
                                     <Start>
-                                        <Stream name="Audio Stream" url="wss://{host}/audiostream_outbound" />
+                                        <Stream name="Audio Stream" url="wss://{host}/audiostream_outbound/{phone_number}" />
                                     </Start>
                                     <Pause length="60"/>
                                 </Response>
                                 """
             call = self.client.calls.create(
-                twiml=XML_MEDIA_STREAM.format(host=self.remote_host),
+                twiml=XML_MEDIA_STREAM.format(
+                    host=self.remote_host, phone_number=phone_number
+                ),
                 to=phone_number,
                 from_=self.from_phone,
             )
             return {"message": "Call initiated", "call_sid": call.sid}, 200
 
-        @self.sock.route("/audiostream_inbound", websocket=True)
-        def on_media_stream_inbound(ws):
+        @self.sock.route("/audiostream_inbound/<phone_number>", websocket=True)
+        def on_media_stream_inbound(ws, phone_number):
             session = TwilioCallSession(
                 ws,
                 self.client,
                 remote_host=self.remote_host,
                 static_dir=self.static_dir,
+                phone_number=phone_number,
             )
+            print(f"inbound phone number: {phone_number}")
             if self.on_session is not None:
-                thread = threading.Thread(target=self.on_session, args=(session, False))
+                thread = threading.Thread(
+                    target=self.on_session, args=(session, False, phone_number)
+                )
                 thread.start()
             session.start_session()
 
-        @self.sock.route("/audiostream_outbound", websocket=True)
-        def on_media_stream_outbound(ws):
+        @self.sock.route("/audiostream_outbound/<phone_number>", websocket=True)
+        def on_media_stream_outbound(ws, phone_number):
             session = TwilioCallSession(
                 ws,
                 self.client,
                 remote_host=self.remote_host,
                 static_dir=self.static_dir,
+                phone_number=phone_number,
             )
             if self.on_session is not None:
-                thread = threading.Thread(target=self.on_session, args=(session, True))
+                thread = threading.Thread(
+                    target=self.on_session, args=(session, True, phone_number)
+                )
                 thread.start()
             session.start_session()
+
+        @self.app.route("/", methods=["GET"])
+        def healthcheck():
+            return {"status": "ok"}, 200
 
     def _start(self):
         logging.info("Starting Twilio Server")
@@ -101,13 +121,16 @@ class TwilioServer:
 
 
 class TwilioCallSession:
-    def __init__(self, ws, client: Client, remote_host: str, static_dir: str):
+    def __init__(
+        self, ws, client: Client, remote_host: str, static_dir: str, phone_number=None
+    ):
         self.ws = ws
         self.client = client
         self.sst_stream = WhisperTwilioStream()
         self.remote_host = remote_host
         self.static_dir = static_dir
         self._call = None
+        self.phone_number = phone_number
 
     def media_stream_connected(self):
         return self._call is not None
@@ -154,3 +177,17 @@ class TwilioCallSession:
 
     def start_session(self):
         self._read_ws()
+
+
+def format_phone_number(phone_number):
+    # Remove any non-digit characters
+    digits = "".join(filter(str.isdigit, phone_number))
+    # If the first digit is 1 and there are 11 digits, drop the first digit
+    if len(digits) == 11 and digits[0] == "1":
+        digits = digits[1:]
+    # Ensure we have exactly 10 digits
+    if len(digits) != 10:
+        raise ValueError("Phone number must contain exactly 10 digits")
+
+    # Format as XXX-XXX-XXXX
+    return f"{digits[:3]}-{digits[3:6]}-{digits[6:]}"

@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 
 from llm_convo.audio_input import WhisperMicrophone
 from llm_convo.audio_output import TTSClient, GoogleTTS
-from llm_convo.mec_ai_io import OpenAIChatCompletion, LangChainAgent
 from llm_convo.twilio_io import TwilioCallSession
+import requests
 
 
 class ChatAgent(ABC):
@@ -34,37 +34,31 @@ class TerminalInPrintOut(ChatAgent):
         return input(" response > ")
 
 
-class OpenAIChat(ChatAgent):
-    def __init__(
-        self,
-        system_prompt: str,
-        init_phrase: Optional[str] = None,
-        model: Optional[str] = None,
-    ):
-        self.llm_agent = OpenAIChatCompletion(system_prompt=system_prompt, model=model)
-        self.init_phrase = init_phrase
-
-    def get_response(self, transcript: List[str]) -> str:
-        if len(transcript) > 0:
-            response = self.llm_agent.get_response(transcript)
-        else:
-            response = self.init_phrase
-        return response
-
-
 class LangchainChat(ChatAgent):
     def __init__(
         self,
-        system_prompt: str,
+        system_message: str,
         init_phrase: Optional[str] = None,
         model: Optional[str] = None,
     ):
-        self.llm_agent = LangChainAgent(system_prompt=system_prompt, model=model)
         self.init_phrase = init_phrase
+        self.url = "http://probable-instantly-crab.ngrok-free.app/run_agent"
+        self.system_message = system_message
 
     def get_response(self, transcript: List[str]) -> str:
         if len(transcript) > 0:
-            response = self.llm_agent.get_response(transcript)
+            try:
+                res = requests.post(
+                    self.url,
+                    json={
+                        "system_message": self.system_message,
+                        "transcript": transcript,
+                    },
+                )
+                response = res.json()["result"]
+            except Exception as e:
+                print(f"An error occurred while making the request: {str(e)}")
+                response = "I'm sorry, but there is a technical issue."
         else:
             response = self.init_phrase
         return response
