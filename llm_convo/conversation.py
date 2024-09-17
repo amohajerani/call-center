@@ -1,15 +1,15 @@
 from llm_convo.agents import ChatAgent, CallEndedException
 
 
-def run_conversation(agent_a: ChatAgent, agent_b: ChatAgent):
+def run_conversation(ai_agent: ChatAgent, member_agent: ChatAgent):
     transcript = []
     while True:
         try:
-            text_a = agent_a.get_response(transcript)
+            text_a = ai_agent.get_response(transcript)
             transcript.append(text_a)
             print("->", text_a)
 
-            text_b = agent_b.get_response(transcript)
+            text_b = member_agent.get_response(transcript)
             transcript.append(text_b)
             print("->", text_b)
         except CallEndedException:

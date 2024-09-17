@@ -34,12 +34,11 @@ class TerminalInPrintOut(ChatAgent):
         return input(" response > ")
 
 
-class LangchainChat(ChatAgent):
+class AIAgent(ChatAgent):
     def __init__(
         self,
         system_message: str,
         init_phrase: Optional[str] = None,
-        model: Optional[str] = None,
     ):
         self.init_phrase = init_phrase
         self.url = "http://probable-instantly-crab.ngrok-free.app/run_agent"

@@ -1,6 +1,5 @@
 black==24.8.0
 gTTS==2.5.3
-openai==1.44.1
 SpeechRecognition==3.10.4
 pyaudio==0.2.14
 pydub==0.25.1
@@ -10,6 +9,3 @@ twilio==9.3.0
 flask==3.0.3
 flask_sock==0.7.0
 openai-whisper==20231117
-langchain==0.2.16
-langchain-openai==0.1.23
-langchain-tools==0.1.34

@@ -8,7 +8,7 @@ import tempfile
 import os
 import time
 import sys
-from llm_convo.agents import TwilioCaller, LangchainChat
+from llm_convo.agents import TwilioCaller, AIAgent
 from llm_convo.audio_input import get_whisper_model
 from llm_convo.twilio_io import TwilioServer
 from llm_convo.conversation import run_conversation
@@ -35,7 +35,7 @@ def main(port, remote_host, start_ngrok):
     tws.start()
 
     def run_chat(sess, outbound_call, phone_number):
-        mec_agent = None
+        ai_agent = None
         member_agent = None
         try:
             if outbound_call:
@@ -53,9 +53,7 @@ def main(port, remote_host, start_ngrok):
                 """
                 init_phrase = "Thank you for calling Signify. My name is Sarah. Can you verify your name please?"
 
-            mec_agent = LangchainChat(
-                system_message=system_message, init_phrase=init_phrase
-            )
+            ai_agent = AIAgent(system_message=system_message, init_phrase=init_phrase)
             member_agent = TwilioCaller(
                 sess,
                 # thinking_phrase="One moment"
@@ -63,12 +61,12 @@ def main(port, remote_host, start_ngrok):
             while not member_agent.session.media_stream_connected():
                 time.sleep(0.1)
 
-            run_conversation(mec_agent, member_agent)
+            run_conversation(ai_agent, member_agent)
 
         finally:
             # Delete instances when the call ends
-            if mec_agent:
-                del mec_agent
+            if ai_agent:
+                del ai_agent
             if member_agent:
                 del member_agent
             logging.info("Call ended. Agent instances deleted.")
