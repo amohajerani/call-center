@@ -13,6 +13,7 @@ from llm_convo.audio_input import get_whisper_model
 from llm_convo.twilio_io import TwilioServer
 from llm_convo.conversation import run_conversation
 from pyngrok import ngrok
+from llm_convo.utils import get_member_information
 
 
 def main(port, remote_host, start_ngrok):
@@ -37,19 +38,23 @@ def main(port, remote_host, start_ngrok):
     def run_chat(sess, outbound_call, phone_number):
         ai_agent = None
         member_agent = None
+        # get member information
+        member_information = get_member_information(phone_number)
         try:
             if outbound_call:
                 system_message = f"""
                     You are a call center agent at Signify Health. Your task is to call members to schedule their appointments. \
                         Ensure you gather all necessary information such as the preferred date, time, and type of appointment. \
-                        Confirm the details with the member before ending the call. The member's phone number is {phone_number}
+                        Confirm the details with the member before ending the call. Use the following member's information to help the member.
+                        {member_information}
                 """
                 init_phrase = "Hi,This is Sarah from Signify Health. You are on a recorded call. I am calling to schedule your annual wellness visit."
             else:
                 system_message = f"""
                     You are a call center agent at Signify Health. You have received a call from a call from a member. \
                 The members usually call regarding their appointments. Your task is to answer their questions, manage their appointments, and provide them with the necessary information. \
-                The member's phone number is {phone_number}.
+                use the following member's information to help the member.
+                {member_information}
                 """
                 init_phrase = "Thank you for calling Signify. My name is Sarah. Can you verify your name please?"
 
@@ -61,7 +66,7 @@ def main(port, remote_host, start_ngrok):
             while not member_agent.session.media_stream_connected():
                 time.sleep(0.1)
 
-            run_conversation(ai_agent, member_agent)
+            run_conversation(ai_agent, member_agent, member_information)
 
         finally:
             # Delete instances when the call ends
