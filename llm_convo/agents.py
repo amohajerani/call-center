@@ -94,7 +94,7 @@ class TwilioCaller(ChatAgent):
             raise CallEndedException("The call has ended.")
         if len(transcript) > 0:
             self._say(transcript[-1], "elevenlabs")
-            print("done with saying")
+            print("the say is completed")
         resp = self.session.sst_stream.get_transcription()
         # self._say(self.thinking_phrase)
         return resp
