@@ -6,20 +6,22 @@ import json
 import time
 from flask import request
 
+
 from gevent.pywsgi import WSGIServer
 from twilio.rest import Client
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, Response
 from flask_sock import Sock
 import simple_websocket
 import audioop
-
+import os
 from llm_convo.audio_input import WhisperTwilioStream
+from twilio.twiml.voice_response import VoiceResponse
 
 from elevenlabs.client import ElevenLabs
 
-elevenLabs_client = ElevenLabs(
-  api_key="sk_5e07c94ef72552cd9e34316901bfc5ad4feb5838b6f98a99" 
-)
+ELEVENLABS_KEY = os.getenv("ELEVENLABS_KEY")
+elevenLabs_client = ElevenLabs(api_key=ELEVENLABS_KEY)
+
 
 class TwilioServer:
     def __init__(self, remote_host: str, port: int, static_dir: str):
@@ -45,17 +47,11 @@ class TwilioServer:
             phone_number = request.form.get("From")
             phone_number = format_phone_number(phone_number)
             print(f"Incoming call from phone number: {phone_number}")
-            XML_MEDIA_STREAM = """
-                                <Response>
-                                    <Start>
-                                        <Stream name="Audio Stream" url="wss://{host}/audiostream_inbound/{phone_number}" />
-                                    </Start>
-                                    <Pause length="60"/>
-                                </Response>
-                                """
-            return XML_MEDIA_STREAM.format(
-                host=self.remote_host, phone_number=phone_number
-            )
+            twiml = VoiceResponse()
+            stream_url = f"wss://{request.host}/audiostream_inbound/{phone_number}"
+            print(f"Stream URL: {stream_url}")
+            twiml.connect().stream(url=stream_url)
+            return Response(str(twiml), mimetype="text/xml")
 
         @self.app.route("/start-call", methods=["POST"])
         def start_call():
@@ -136,7 +132,8 @@ class TwilioCallSession:
         self.static_dir = static_dir
         self._call = None
         self.phone_number = phone_number
-        self.stream_sid=None
+        self.stream_sid = None
+        self.is_playing = False
 
     def media_stream_connected(self):
         return self._call is not None
@@ -156,7 +153,9 @@ class TwilioCallSession:
             if data["event"] == "start":
                 logging.info("Call connected, " + str(data["start"]))
                 self._call = self.client.calls(data["start"]["callSid"])
-                self.stream_sid = ['start']['streamSid']
+                self.stream_sid = data["start"][
+                    "streamSid"
+                ]  # Fix: Assign streamSid correctly
 
             elif data["event"] == "media":
                 media = data["media"]
@@ -186,28 +185,51 @@ class TwilioCallSession:
     def stream_elevenlabs(self, text: str):
         # Step 1: get the streamSid, which is a unique identifier of the stream
         stream_sid = self.stream_sid
+        if not stream_sid:
+            logging.error("No stream SID available. Cannot send audio.")
+            return  # Exit if stream_sid is not set
 
-        # step 2: send a request to elevenlabs client and gather the chunks
+        print(f"stream SID: {stream_sid}")
+
+        # Step 2: send a request to elevenlabs client and gather the chunks
         audio_generator = elevenLabs_client.generate(
-                text=text,
-                voice='Rachel',
-                model="eleven_turbo_v2",
-                output_format='ulaw_8000'
-            )
+            text=text,
+            voice="Rachel",
+            model="eleven_turbo_v2",
+            output_format="ulaw_8000",
+        )
+
         # Consume the generator and concatenate the audio chunks
-        audio = b''.join(chunk for chunk in audio_generator)
-        audio_base64 = base64.b64encode(audio).decode('utf-8')
-        # step 3: send a websocket message to twilio            
-        self.ws.send(json.dumps({
-                'streamSid': stream_sid,
-                'event': 'media',
-                'media': {
-                    'payload': audio_base64
-                }
-            }))
+        audio = b"".join(chunk for chunk in audio_generator)
 
+        if not audio:
+            logging.error("No audio generated from ElevenLabs.")
+            return  # Exit if no audio is generated
 
-    def start_session(self):
+        audio_base64 = base64.b64encode(audio).decode("utf-8")
+        logging.info(f"Sending audio of length: {len(audio)} bytes")
+
+        # Step 3: send a websocket message to twilio
+        message = {
+            "streamSid": stream_sid,
+            "event": "media",
+            "media": {"payload": audio_base64},
+        }
+        try:
+            self.ws.send(json.dumps(message))
+            logging.info("WebSocket message sent successfully.")
+        except Exception as e:
+            logging.error(f"Failed to send WebSocket message: {e}")
+        # Calculate the duration of the audio
+        frame_rate = 8000  # ulaw_8000 has a frame rate of 8000 Hz
+        sample_width = 1  # ulaw has a sample width of 1 byte
+        n_frames = len(audio) // sample_width
+        duration_seconds = n_frames / float(frame_rate)
+        print(f"Duration: {duration_seconds}")
+        time.sleep(duration_seconds + 0.1)
+        return 1
+
+    def start_session(self):  # Fix: Adjusted indentation
         self._read_ws()
 
 

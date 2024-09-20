@@ -17,7 +17,18 @@ class TTSClient(ABC):
     def play_text(self, text: str) -> str:
         tmp_mp3 = self.text_to_mp3(text)
         tmp_wav = tmp_mp3.replace(".mp3", ".wav")
-        subprocess.call(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", tmp_mp3, tmp_wav])
+        subprocess.call(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-i",
+                tmp_mp3,
+                tmp_wav,
+            ]
+        )
 
         wf = wave.open(tmp_wav, "rb")
         audio = pyaudio.PyAudio()
@@ -38,7 +49,16 @@ class TTSClient(ABC):
 
     def get_duration(self, audio_fn: str) -> float:
         popen = subprocess.Popen(
-            ["ffprobe", "-hide_banner", "-loglevel", "error", "-show_entries", "format=duration", "-i", audio_fn],
+            [
+                "ffprobe",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-i",
+                audio_fn,
+            ],
             stdout=subprocess.PIPE,
         )
         popen.wait()

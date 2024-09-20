@@ -5,6 +5,7 @@ from llm_convo.audio_input import WhisperMicrophone
 from llm_convo.audio_output import TTSClient, GoogleTTS
 from llm_convo.twilio_io import TwilioCallSession
 import requests
+import time
 
 
 class ChatAgent(ABC):
@@ -74,20 +75,26 @@ class TwilioCaller(ChatAgent):
         self.speaker = tts or GoogleTTS()
         self.thinking_phrase = thinking_phrase
 
-    def _say(self, text: str):
-        # key, tts_fn = self.session.get_audio_fn_and_key(text)
-        # self.speaker.text_to_mp3(text, output_fn=tts_fn)
-        # duration = self.speaker.get_duration(tts_fn)
-        # self.session.play(key, duration)
-        # uncomment the line below to use Twilio's TTS (high latency)
-        #self.session.say(text)
-        self.session.stream_elevenlabs(text)
+    def _say(self, text: str, tts: str):
+        if tts == "gtts":
+            key, tts_fn = self.session.get_audio_fn_and_key(text)
+            self.speaker.text_to_mp3(text, output_fn=tts_fn)
+            duration = self.speaker.get_duration(tts_fn)
+            self.session.play(key, duration)
+        elif tts == "twilio":
+            self.session.say(text)
+        elif tts == "elevenlabs":
+            res = self.session.stream_elevenlabs(text)
+            print(res)
+        else:
+            return "non-existing tts"
 
     def get_response(self, transcript: List[str]) -> str:
         if not self.session.media_stream_connected():
             raise CallEndedException("The call has ended.")
         if len(transcript) > 0:
-            self._say(transcript[-1])
+            self._say(transcript[-1], "elevenlabs")
+            print("done with saying")
         resp = self.session.sst_stream.get_transcription()
         # self._say(self.thinking_phrase)
         return resp
