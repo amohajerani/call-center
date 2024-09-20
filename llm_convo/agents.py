@@ -80,7 +80,8 @@ class TwilioCaller(ChatAgent):
         # duration = self.speaker.get_duration(tts_fn)
         # self.session.play(key, duration)
         # uncomment the line below to use Twilio's TTS (high latency)
-        self.session.say(text)
+        #self.session.say(text)
+        self.session.stream_elevenlabs(text)
 
     def get_response(self, transcript: List[str]) -> str:
         if not self.session.media_stream_connected():

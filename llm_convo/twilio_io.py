@@ -15,6 +15,11 @@ import audioop
 
 from llm_convo.audio_input import WhisperTwilioStream
 
+from elevenlabs.client import ElevenLabs
+
+elevenLabs_client = ElevenLabs(
+  api_key="sk_5e07c94ef72552cd9e34316901bfc5ad4feb5838b6f98a99" 
+)
 
 class TwilioServer:
     def __init__(self, remote_host: str, port: int, static_dir: str):
@@ -131,6 +136,7 @@ class TwilioCallSession:
         self.static_dir = static_dir
         self._call = None
         self.phone_number = phone_number
+        self.stream_sid=None
 
     def media_stream_connected(self):
         return self._call is not None
@@ -150,6 +156,8 @@ class TwilioCallSession:
             if data["event"] == "start":
                 logging.info("Call connected, " + str(data["start"]))
                 self._call = self.client.calls(data["start"]["callSid"])
+                self.stream_sid = ['start']['streamSid']
+
             elif data["event"] == "media":
                 media = data["media"]
                 chunk = base64.b64decode(media["payload"])
@@ -174,6 +182,30 @@ class TwilioCallSession:
         twiml = f'<Response><Say voice="Polly.Joanna">{text}</Say><Pause length="60"/></Response>'
         self._call.update(twiml=twiml)
         time.sleep(len(text) * 0.1)  # Adjust this value as needed
+
+    def stream_elevenlabs(self, text: str):
+        # Step 1: get the streamSid, which is a unique identifier of the stream
+        stream_sid = self.stream_sid
+
+        # step 2: send a request to elevenlabs client and gather the chunks
+        audio_generator = elevenLabs_client.generate(
+                text=text,
+                voice='Rachel',
+                model="eleven_turbo_v2",
+                output_format='ulaw_8000'
+            )
+        # Consume the generator and concatenate the audio chunks
+        audio = b''.join(chunk for chunk in audio_generator)
+        audio_base64 = base64.b64encode(audio).decode('utf-8')
+        # step 3: send a websocket message to twilio            
+        self.ws.send(json.dumps({
+                'streamSid': stream_sid,
+                'event': 'media',
+                'media': {
+                    'payload': audio_base64
+                }
+            }))
+
 
     def start_session(self):
         self._read_ws()
