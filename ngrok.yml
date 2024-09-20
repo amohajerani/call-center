@@ -1,0 +1,9 @@
+version: "2" 
+authtoken: 2lbl55lrAdUC4ZdpFaZqwVJFX4D_6ht1hf7N1LVXRmDNoGUhw
+
+tunnels:
+  my_tunnel:
+    proto: http
+    addr: 8080
+    inspect: true
+    domain: adapted-commonly-jennet.ngrok-free.app  # Add your remote host here

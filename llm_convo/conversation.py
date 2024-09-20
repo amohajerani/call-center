@@ -8,18 +8,18 @@ def run_conversation(ai_agent: ChatAgent, member_agent: ChatAgent, member_inform
         if len(transcript) == 2:  # after the first exchange
             transcript[0] = (
                 transcript[0]
-                + "I have accessed your infomration. "
+                + "I have accessed your information. "
                 + member_information
             )
 
         try:
             text_a = ai_agent.get_response(transcript)
             transcript.append(text_a)
-            print("->", text_a)
+            print("AI agent ->", text_a)
 
             text_b = member_agent.get_response(transcript)
             transcript.append(text_b)
-            print("->", text_b)
+            print("Caller ->", text_b)
         except CallEndedException:
             print("Call ended.")
             break
