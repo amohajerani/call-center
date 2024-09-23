@@ -14,7 +14,7 @@ from flask_sock import Sock
 import simple_websocket
 import audioop
 import os
-from llm_convo.audio_input import WhisperTwilioStream
+from llm_convo.audio_input import WhisperTwilioStream, DeepgramStream
 from twilio.twiml.voice_response import VoiceResponse
 
 from elevenlabs.client import ElevenLabs
@@ -127,7 +127,7 @@ class TwilioCallSession:
     ):
         self.ws = ws
         self.client = client
-        self.sst_stream = WhisperTwilioStream()
+        self.sst_stream = DeepgramStream()  # WhisperTwilioStream()
         self.remote_host = remote_host
         self.static_dir = static_dir
         self._call = None
@@ -139,6 +139,7 @@ class TwilioCallSession:
         return self._call is not None
 
     def _read_ws(self):
+        # TODO: add closure of deepgram socket.
         while True:
             try:
                 message = self.ws.receive()
@@ -161,7 +162,9 @@ class TwilioCallSession:
                 media = data["media"]
                 chunk = base64.b64decode(media["payload"])
                 if self.sst_stream.stream is not None:
-                    self.sst_stream.stream.write(audioop.ulaw2lin(chunk, 2))
+                    self.sst_stream.stream.write(chunk)
+
+                #    self.sst_stream.stream.write(audioop.ulaw2lin(chunk, 2))
             elif data["event"] == "stop":
                 logging.info("Call media stream ended.")
                 break
@@ -207,7 +210,6 @@ class TwilioCallSession:
                 return  # Exit if no audio is generated
 
             audio_base64 = base64.b64encode(chunk).decode("utf-8")
-            logging.info(f"Sending audio chunk of length: {len(chunk)} bytes")
 
             # Step 3: send a websocket message to twilio
             message = {
