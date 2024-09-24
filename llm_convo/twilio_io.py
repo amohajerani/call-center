@@ -12,9 +12,8 @@ from twilio.rest import Client
 from flask import Flask, send_from_directory, Response
 from flask_sock import Sock
 import simple_websocket
-import audioop
 import os
-from llm_convo.audio_input import WhisperTwilioStream, DeepgramStream
+from llm_convo.audio_input import DeepgramStream
 from twilio.twiml.voice_response import VoiceResponse
 
 from elevenlabs.client import ElevenLabs
@@ -201,8 +200,6 @@ class TwilioCallSession:
             model="eleven_turbo_v2",
             output_format="ulaw_8000",
         )
-        duration_seconds = 0
-        tik = time.time()
         # Consume the generator and send audio chunks immediately
         for chunk in audio_generator:
             if not chunk:
@@ -222,16 +219,6 @@ class TwilioCallSession:
                 logging.info("WebSocket message sent successfully.")
             except Exception as e:
                 logging.error(f"Failed to send WebSocket message: {e}")
-
-            # Calculate the duration of the audio chunk
-            frame_rate = 8000  # ulaw_8000 has a frame rate of 8000 Hz
-            sample_width = 1  # ulaw has a sample width of 1 byte
-            n_frames = len(chunk) // sample_width
-            duration_seconds += n_frames / float(frame_rate)
-        tok = time.time()
-        print(f"the stream duration was {tok-tik}s")
-        print(f"the duration was {duration_seconds}s")
-        time.sleep(duration_seconds - (tok - tik))
 
     def start_session(self):  # Fix: Adjusted indentation
         self._read_ws()
