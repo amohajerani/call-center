@@ -1,9 +1,9 @@
 from typing import List, Optional
 from abc import ABC, abstractmethod
 
-from llm_convo.audio_input import WhisperMicrophone
-from llm_convo.audio_output import TTSClient, GoogleTTS
-from llm_convo.twilio_io import TwilioCallSession
+from audio_input import WhisperMicrophone
+from audio_output import TTSClient, GoogleTTS
+from twilio_io import TwilioCallSession
 import requests
 import time
 

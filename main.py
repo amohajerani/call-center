@@ -8,12 +8,12 @@ import tempfile
 import os
 import time
 import sys
-from llm_convo.agents import TwilioCaller, AIAgent
-from llm_convo.audio_input import get_whisper_model
-from llm_convo.twilio_io import TwilioServer
-from llm_convo.conversation import run_conversation
+from agents import TwilioCaller, AIAgent
+from audio_input import get_whisper_model
+from twilio_io import TwilioServer
+from conversation import run_conversation
 from pyngrok import ngrok
-from llm_convo.utils import get_member_information
+from utils import get_member_information
 
 
 def main(port, remote_host, start_ngrok):
@@ -60,6 +60,7 @@ def main(port, remote_host, start_ngrok):
                     
                     Only use the information provided and the existing databases for your answers, and please refrain from making guesses. 
                     Be brief. Your answers should be always less than 100 words long. For instance, if the member asks when their last visit was, just give them the date and time, and not all the other details of that visit, unless the member asks for that infomraiton.
+                    Be very mindful of the member's privacy. Do not share any information about other members. When you verify the member's name, do not proceed unless the name matches the one associated with the phone number.
                 
                     Use the following member's information to help the member.
                     {member_information}
@@ -83,6 +84,7 @@ def main(port, remote_host, start_ngrok):
                 
                 Only use the information provided and the existing databases for your answers, and please refrain from making guesses. 
                 Be brief. Your answers should be always less than 100 words long. For instance, if the member asks when their last visit was, just give them the date and time, and not all the other details of that visit, unless the member asks for that infomraiton.
+                Be very mindful of the member's privacy. Do not share any information about other members. When you verify the member's name, do not proceed unless the name matches the one associated with the phone number.
                 
                 Use the following member's information to help the member.
                 {member_information}

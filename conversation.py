@@ -1,4 +1,4 @@
-from llm_convo.agents import ChatAgent, CallEndedException
+from agents import ChatAgent, CallEndedException
 
 
 def run_conversation(ai_agent: ChatAgent, member_agent: ChatAgent, member_information):

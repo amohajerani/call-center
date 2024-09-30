@@ -17,7 +17,8 @@ from flask import Flask, send_from_directory, Response
 from flask_sock import Sock
 import simple_websocket
 import os
-from llm_convo.audio_input import DeepgramStream
+from audio_input import DeepgramStream
+from utils import format_phone_number
 from twilio.twiml.voice_response import VoiceResponse
 
 from elevenlabs.client import ElevenLabs
@@ -227,17 +228,3 @@ class TwilioCallSession:
 
     def start_session(self):  # Fix: Adjusted indentation
         self._read_ws()
-
-
-def format_phone_number(phone_number):
-    # Remove any non-digit characters
-    digits = "".join(filter(str.isdigit, phone_number))
-    # If the first digit is 1 and there are 11 digits, drop the first digit
-    if len(digits) == 11 and digits[0] == "1":
-        digits = digits[1:]
-    # Ensure we have exactly 10 digits
-    if len(digits) != 10:
-        raise ValueError("Phone number must contain exactly 10 digits")
-
-    # Format as XXX-XXX-XXXX
-    return f"{digits[:3]}-{digits[3:6]}-{digits[6:]}"
