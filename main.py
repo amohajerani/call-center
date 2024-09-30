@@ -15,24 +15,17 @@ from conversation import run_conversation
 from pyngrok import ngrok
 from utils import get_member_information
 
+port = 8080
+remote_host = "adapted-commonly-jennet.ngrok-free.app"
 
-def main(port, remote_host, start_ngrok):
-    if start_ngrok:
-        ngrok_http = ngrok.connect(
-            port, domain="adapted-commonly-jennet.ngrok-free.app"
-        )
-        remote_host = ngrok_http.public_url.split("//")[1]
-        print("remote host: ", remote_host)
 
-    static_dir = os.path.join(tempfile.gettempdir(), "twilio_static")
-    os.makedirs(static_dir, exist_ok=True)
+def main():
+    ngrok.connect(port, domain=remote_host)
 
-    logging.info(
-        f"Starting server at {remote_host} from local:{port}, serving static content from {static_dir}"
-    )
+    logging.info(f"Starting server at {remote_host} from local:{port}")
     logging.info(f"Set call webhook to https://{remote_host}/incoming-voice")
 
-    tws = TwilioServer(remote_host=remote_host, port=port, static_dir=static_dir)
+    tws = TwilioServer(remote_host=remote_host, port=port)
     tws.start()
 
     def run_chat(sess, outbound_call, phone_number):
@@ -115,12 +108,4 @@ def main(port, remote_host, start_ngrok):
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--preload_whisper", action="store_true")
-    parser.add_argument("--start_ngrok", action="store_true")
-    parser.add_argument("--port", type=int, default=8080)
-    parser.add_argument("--remote_host", type=str, default="localhost")
-    args = parser.parse_args()
-    if args.preload_whisper:
-        get_whisper_model()
-    main(args.port, args.remote_host, args.start_ngrok)
+    main()

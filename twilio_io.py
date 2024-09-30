@@ -13,7 +13,7 @@ load_dotenv()
 
 from gevent.pywsgi import WSGIServer
 from twilio.rest import Client
-from flask import Flask, send_from_directory, Response
+from flask import Flask, Response
 from flask_sock import Sock
 import simple_websocket
 import os
@@ -29,12 +29,11 @@ elevenLabs_client = ElevenLabs(api_key=ELEVENLABS_KEY)
 
 
 class TwilioServer:
-    def __init__(self, remote_host: str, port: int, static_dir: str):
+    def __init__(self, remote_host: str, port: int):
         self.app = Flask(__name__)
         self.sock = Sock(self.app)
         self.remote_host = remote_host
         self.port = port
-        self.static_dir = static_dir
         self.server_thread = threading.Thread(target=self._start)
         self.on_session = None
 
@@ -42,10 +41,6 @@ class TwilioServer:
         auth_token = os.environ["TWILIO_AUTH_TOKEN"]
         self.from_phone = os.environ["TWILIO_PHONE_NUMBER"]
         self.client = Client(account_sid, auth_token)
-
-        @self.app.route("/audio/<key>")
-        def audio(key):
-            return send_from_directory(self.static_dir, str(int(key)) + ".mp3")
 
         @self.app.route("/incoming-voice", methods=["POST"])
         def incoming_voice():
@@ -87,7 +82,6 @@ class TwilioServer:
                 ws,
                 self.client,
                 remote_host=self.remote_host,
-                static_dir=self.static_dir,
                 phone_number=phone_number,
             )
             print(f"inbound phone number: {phone_number}")
@@ -104,7 +98,6 @@ class TwilioServer:
                 ws,
                 self.client,
                 remote_host=self.remote_host,
-                static_dir=self.static_dir,
                 phone_number=phone_number,
             )
             if self.on_session is not None:
@@ -127,14 +120,11 @@ class TwilioServer:
 
 
 class TwilioCallSession:
-    def __init__(
-        self, ws, client: Client, remote_host: str, static_dir: str, phone_number=None
-    ):
+    def __init__(self, ws, client: Client, remote_host: str, phone_number=None):
         self.ws = ws
         self.client = client
         self.sst_stream = DeepgramStream()  # WhisperTwilioStream()
         self.remote_host = remote_host
-        self.static_dir = static_dir
         self._call = None
         self.phone_number = phone_number
         self.stream_sid = None
@@ -173,22 +163,6 @@ class TwilioCallSession:
             elif data["event"] == "stop":
                 logging.info("Call media stream ended.")
                 break
-
-    def get_audio_fn_and_key(self, text: str):
-        key = str(abs(hash(text)))
-        path = os.path.join(self.static_dir, key + ".mp3")
-        return key, path
-
-    def play(self, audio_key: str, duration: float):
-        self._call.update(
-            twiml=f'<Response><Play>https://{self.remote_host}/audio/{audio_key}</Play><Pause length="60"/></Response>'
-        )
-        time.sleep(duration + 0.2)
-
-    def say(self, text: str):
-        twiml = f'<Response><Say voice="Polly.Joanna">{text}</Say><Pause length="60"/></Response>'
-        self._call.update(twiml=twiml)
-        time.sleep(len(text) * 0.1)  # Adjust this value as needed
 
     def stream_elevenlabs(self, text: str):
         # Step 1: get the streamSid, which is a unique identifier of the stream
