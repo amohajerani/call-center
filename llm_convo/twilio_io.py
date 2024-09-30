@@ -5,7 +5,11 @@ import base64
 import json
 import time
 from flask import request
+from dotenv import load_dotenv
+import os
 
+# Ensure environment variables are loaded
+load_dotenv()
 
 from gevent.pywsgi import WSGIServer
 from twilio.rest import Client
@@ -19,6 +23,7 @@ from twilio.twiml.voice_response import VoiceResponse
 from elevenlabs.client import ElevenLabs
 
 ELEVENLABS_KEY = os.getenv("ELEVENLABS_KEY")
+print("elevenlabs api key: ", ELEVENLABS_KEY)
 elevenLabs_client = ElevenLabs(api_key=ELEVENLABS_KEY)
 
 

@@ -42,7 +42,7 @@ class AIAgent(ChatAgent):
         init_phrase: Optional[str] = None,
     ):
         self.init_phrase = init_phrase
-        self.url = "http://probable-instantly-crab.ngrok-free.app/run_agent"
+        self.url = "http://localhost:5001/run_agent"  # "http://probable-instantly-crab.ngrok-free.app/run_agent"
         self.system_message = system_message
 
     def get_response(self, transcript: List[str]) -> str:

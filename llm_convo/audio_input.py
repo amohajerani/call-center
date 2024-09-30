@@ -8,6 +8,11 @@ import logging
 from pydub import AudioSegment
 import speech_recognition as sr
 import whisper
+from dotenv import load_dotenv
+import os
+
+# Ensure environment variables are loaded
+load_dotenv()
 
 
 @functools.cache
