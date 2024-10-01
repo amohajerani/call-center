@@ -53,29 +53,6 @@ class TwilioServer:
             twiml.connect().stream(url=stream_url)
             return Response(str(twiml), mimetype="text/xml")
 
-        @self.app.route("/start-call", methods=["POST"])
-        def start_call():
-            phone_number = request.json.get("phone_number")
-            phone_number = format_phone_number(phone_number)
-            print(f"Starting the call to {phone_number}")
-
-            XML_MEDIA_STREAM = """
-                                <Response>
-                                    <Start>
-                                        <Stream name="Audio Stream" url="wss://{host}/audiostream_outbound/{phone_number}" />
-                                    </Start>
-                                    <Pause length="60"/>
-                                </Response>
-                                """
-            call = self.client.calls.create(
-                twiml=XML_MEDIA_STREAM.format(
-                    host=self.remote_host, phone_number=phone_number
-                ),
-                to=phone_number,
-                from_=self.from_phone,
-            )
-            return {"message": "Call initiated", "call_sid": call.sid}, 200
-
         @self.sock.route("/audiostream_inbound/<phone_number>", websocket=True)
         def on_media_stream_inbound(ws, phone_number):
             session = TwilioCallSession(
@@ -87,22 +64,7 @@ class TwilioServer:
             print(f"inbound phone number: {phone_number}")
             if self.on_session is not None:
                 thread = threading.Thread(
-                    target=self.on_session, args=(session, False, phone_number)
-                )
-                thread.start()
-            session.start_session()
-
-        @self.sock.route("/audiostream_outbound/<phone_number>", websocket=True)
-        def on_media_stream_outbound(ws, phone_number):
-            session = TwilioCallSession(
-                ws,
-                self.client,
-                remote_host=self.remote_host,
-                phone_number=phone_number,
-            )
-            if self.on_session is not None:
-                thread = threading.Thread(
-                    target=self.on_session, args=(session, True, phone_number)
+                    target=self.on_session, args=(session, phone_number)
                 )
                 thread.start()
             session.start_session()
