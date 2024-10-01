@@ -1,36 +1,20 @@
-
 import queue
 import logging
 import threading
-
-
-from dotenv import load_dotenv
-import os
-import json
-
-# Ensure environment variables are loaded
-load_dotenv()
-
-
-
-
-class _QueueStream:
-    def __init__(self):
-        self.q = queue.Queue(maxsize=-1)
-
-    def read(self) -> bytes:
-        return self.q.get()
-
-    def write(self, chunk: bytes):
-        self.q.put(chunk)
-
-
 from deepgram import (
     DeepgramClient,
     LiveTranscriptionEvents,
     LiveOptions,
 )
+
+from dotenv import load_dotenv
+import os
+import json
 import time
+
+# Ensure environment variables are loaded
+load_dotenv()
+
 
 deepgram_client = DeepgramClient()
 
@@ -77,13 +61,13 @@ class DeepgramStream:
                 logging.error(f"Error in keep-alive thread: {e}")
 
     def get_transcription(self) -> str:
-        self.stream = _QueueStream()
+        self.stream = queue.Queue(maxsize=-1)
         print("self.dg_connection.is_connected: ", self.dg_connection.is_connected())
         if not self.dg_connection.is_connected():
             print("restablish connection")
             self.dg_connection.start(self.options)
         while True:
-            audio_chunk = self.stream.read()
+            audio_chunk = self.stream.get()
             if audio_chunk is None:  # Exit condition
                 print("No more audio chunks to process. Exiting...")
                 break
