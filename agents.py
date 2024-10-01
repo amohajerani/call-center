@@ -60,17 +60,13 @@ class TwilioCaller(ChatAgent):
         self.session = session
         self.thinking_phrase = thinking_phrase
 
-    def _say(self, text: str):
-        self.session.stream_elevenlabs(text)
-
     def get_response(self, transcript: List[str]) -> str:
         if not self.session.media_stream_connected():
             raise CallEndedException("The call has ended.")
         if len(transcript) > 0:
-            self._say(transcript[-1])
-            print("the say is completed")
+            self.session.stream_elevenlabs(transcript[-1])
         resp = self.session.sst_stream.get_transcription()
-        # self._say(self.thinking_phrase)
+        # the thinking phrase can be added here.
         return resp
 
 
