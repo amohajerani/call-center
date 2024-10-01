@@ -1,7 +1,6 @@
 from typing import List, Optional
 from abc import ABC, abstractmethod
 
-from audio_output import TTSClient, GoogleTTS
 from twilio_io import TwilioCallSession
 import requests
 import time
@@ -56,32 +55,19 @@ class TwilioCaller(ChatAgent):
     def __init__(
         self,
         session: TwilioCallSession,
-        tts: Optional[TTSClient] = None,
         thinking_phrase: str = "OK",
     ):
         self.session = session
-        self.speaker = tts or GoogleTTS()
         self.thinking_phrase = thinking_phrase
 
-    def _say(self, text: str, tts: str):
-        if tts == "gtts":
-            key, tts_fn = self.session.get_audio_fn_and_key(text)
-            self.speaker.text_to_mp3(text, output_fn=tts_fn)
-            duration = self.speaker.get_duration(tts_fn)
-            self.session.play(key, duration)
-        elif tts == "twilio":
-            self.session.say(text)
-        elif tts == "elevenlabs":
-            res = self.session.stream_elevenlabs(text)
-            print(res)
-        else:
-            return "non-existing tts"
+    def _say(self, text: str):
+        self.session.stream_elevenlabs(text)
 
     def get_response(self, transcript: List[str]) -> str:
         if not self.session.media_stream_connected():
             raise CallEndedException("The call has ended.")
         if len(transcript) > 0:
-            self._say(transcript[-1], "elevenlabs")
+            self._say(transcript[-1])
             print("the say is completed")
         resp = self.session.sst_stream.get_transcription()
         # self._say(self.thinking_phrase)

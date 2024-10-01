@@ -1,12 +1,8 @@
-import io
-import os
-import tempfile
+
 import queue
 import logging
 import threading
 
-from pydub import AudioSegment
-import speech_recognition as sr
 
 from dotenv import load_dotenv
 import os
@@ -16,18 +12,6 @@ import json
 load_dotenv()
 
 
-class _TwilioSource(sr.AudioSource):
-    def __init__(self, stream):
-        self.stream = stream
-        self.CHUNK = 1024
-        self.SAMPLE_RATE = 8000
-        self.SAMPLE_WIDTH = 2
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        pass
 
 
 class _QueueStream:
@@ -39,21 +23,6 @@ class _QueueStream:
 
     def write(self, chunk: bytes):
         self.q.put(chunk)
-
-    def get_transcription(self) -> str:
-        self.stream = _QueueStream()
-        with _TwilioSource(self.stream) as source:
-            logging.info("Waiting for twilio caller...")
-            with tempfile.TemporaryDirectory() as tmp:
-                tmp_path = os.path.join(tmp, "mic.wav")
-                audio = self.recognizer.listen(source)
-                data = io.BytesIO(audio.get_wav_data())
-                audio_clip = AudioSegment.from_file(data)
-                audio_clip.export(tmp_path, format="wav")
-                result = self.audio_model.transcribe(tmp_path, language="english")
-        predicted_text = result["text"]
-        self.stream = None
-        return predicted_text
 
 
 from deepgram import (
