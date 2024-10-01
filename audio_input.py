@@ -8,7 +8,6 @@ from deepgram import (
 )
 
 from dotenv import load_dotenv
-import os
 import json
 import time
 
@@ -23,21 +22,14 @@ class DeepgramStream:
     def __init__(self) -> None:
         self.dg_connection = deepgram_client.listen.websocket.v("1")
         self.dg_connection.on(LiveTranscriptionEvents.Transcript, self.on_message)
-        self.stream = None
         self.options = LiveOptions(
             model="nova-2",
             language="en-US",
-            # smart_format=True,
             encoding="mulaw",
             channels=1,
             sample_rate=8000,
             interim_results=False,
-            # utterance_end_ms="1000",
-            # vad_events=True,
-            # endpointing=300,
         )
-
-        # addons = {"no_delay": "true"}
 
         self.transcript = ""
         if self.dg_connection.start(self.options) is False:
@@ -61,13 +53,13 @@ class DeepgramStream:
                 logging.error(f"Error in keep-alive thread: {e}")
 
     def get_transcription(self) -> str:
-        self.stream = queue.Queue(maxsize=-1)
+        self.queue = queue.Queue(maxsize=-1)
         print("self.dg_connection.is_connected: ", self.dg_connection.is_connected())
         if not self.dg_connection.is_connected():
             print("restablish connection")
             self.dg_connection.start(self.options)
         while True:
-            audio_chunk = self.stream.get()
+            audio_chunk = self.queue.get()
             if audio_chunk is None:  # Exit condition
                 print("No more audio chunks to process. Exiting...")
                 break

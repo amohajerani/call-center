@@ -55,10 +55,8 @@ class TwilioCaller(ChatAgent):
     def __init__(
         self,
         session: TwilioCallSession,
-        thinking_phrase: str = "OK",
     ):
         self.session = session
-        self.thinking_phrase = thinking_phrase
 
     def get_response(self, transcript: List[str]) -> str:
         if not self.session.media_stream_connected():

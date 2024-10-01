@@ -117,8 +117,8 @@ class TwilioCallSession:
                 elif data["event"] == "media":
                     media = data["media"]
                     chunk = base64.b64decode(media["payload"])
-                    if self.sst_stream.stream is not None and not self.is_streaming:
-                        self.sst_stream.stream.put(chunk)
+                    if not self.is_streaming:
+                        self.sst_stream.queue.put(chunk)
                 elif data["event"] == "stop":
                     logging.info("Call media stream ended.")
                     break
