@@ -2,45 +2,18 @@ import io
 import os
 import tempfile
 import queue
-import functools
 import logging
+import threading
 
 from pydub import AudioSegment
 import speech_recognition as sr
-import whisper
+
 from dotenv import load_dotenv
 import os
+import json
 
 # Ensure environment variables are loaded
 load_dotenv()
-
-
-@functools.cache
-def get_whisper_model(size: str = "large"):
-    logging.info(f"Loading whisper {size}")
-    return whisper.load_model(size)
-
-
-class WhisperMicrophone:
-    def __init__(self):
-        self.audio_model = get_whisper_model()
-        self.recognizer = sr.Recognizer()
-        self.recognizer.energy_threshold = 500
-        self.recognizer.pause_threshold = 0.8
-        self.recognizer.dynamic_energy_threshold = False
-
-    def get_transcription(self) -> str:
-        with sr.Microphone(sample_rate=16000) as source:
-            logging.info("Waiting for mic...")
-            with tempfile.TemporaryDirectory() as tmp:
-                tmp_path = os.path.join(tmp, "mic.wav")
-                audio = self.recognizer.listen(source)
-                data = io.BytesIO(audio.get_wav_data())
-                audio_clip = AudioSegment.from_file(data)
-                audio_clip.export(tmp_path, format="wav")
-                result = self.audio_model.transcribe(tmp_path, language="english")
-            predicted_text = result["text"]
-        return predicted_text
 
 
 class _TwilioSource(sr.AudioSource):
@@ -67,16 +40,6 @@ class _QueueStream:
     def write(self, chunk: bytes):
         self.q.put(chunk)
 
-
-class WhisperTwilioStream:
-    def __init__(self):
-        self.audio_model = get_whisper_model()
-        self.recognizer = sr.Recognizer()
-        self.recognizer.energy_threshold = 300
-        self.recognizer.pause_threshold = 2.5
-        self.recognizer.dynamic_energy_threshold = False
-        self.stream = None
-
     def get_transcription(self) -> str:
         self.stream = _QueueStream()
         with _TwilioSource(self.stream) as source:
@@ -93,14 +56,12 @@ class WhisperTwilioStream:
         return predicted_text
 
 
-import time
 from deepgram import (
     DeepgramClient,
-    DeepgramClientOptions,
     LiveTranscriptionEvents,
     LiveOptions,
-    Microphone,
 )
+import time
 
 deepgram_client = DeepgramClient()
 
@@ -131,6 +92,20 @@ class DeepgramStream:
             return
         else:
             print(f"Connected to deepgram: {self.dg_connection}")
+        self.keep_alive_running = True
+        self.keep_alive_thread = threading.Thread(target=self.send_keep_alive)
+        self.keep_alive_thread.daemon = True
+        self.keep_alive_thread.start()
+
+    def send_keep_alive(self):
+        msg = json.dumps({"type": "KeepAlive"})
+        while self.keep_alive_running:
+            try:
+                self.dg_connection.send(msg)
+                print("sent a keep alive message")
+                time.sleep(9)
+            except Exception as e:
+                logging.error(f"Error in keep-alive thread: {e}")
 
     def get_transcription(self) -> str:
         self.stream = _QueueStream()
@@ -158,3 +133,8 @@ class DeepgramStream:
         if sentence and result.speech_final:
             print(f"Transcript received: {sentence}")
             self.transcript = sentence
+
+    def close(self):
+        self.keep_alive_running = False
+        self.dg_connection.close()
+        self.keep_alive_thread.join()

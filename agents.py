@@ -1,7 +1,6 @@
 from typing import List, Optional
 from abc import ABC, abstractmethod
 
-from audio_input import WhisperMicrophone
 from audio_output import TTSClient, GoogleTTS
 from twilio_io import TwilioCallSession
 import requests
@@ -15,17 +14,6 @@ class ChatAgent(ABC):
 
     def start(self):
         pass
-
-
-class MicrophoneInSpeakerTTSOut(ChatAgent):
-    def __init__(self, tts: Optional[TTSClient] = None):
-        self.mic = WhisperMicrophone()
-        self.speaker = tts or GoogleTTS()
-
-    def get_response(self, transcript: List[str]) -> str:
-        if len(transcript) > 0:
-            self.speaker.play_text(transcript[-1])
-        return self.mic.get_transcription()
 
 
 class TerminalInPrintOut(ChatAgent):

@@ -61,7 +61,6 @@ class TwilioServer:
                 remote_host=self.remote_host,
                 phone_number=phone_number,
             )
-            print(f"inbound phone number: {phone_number}")
             if self.on_session is not None:
                 thread = threading.Thread(
                     target=self.on_session, args=(session, phone_number)
@@ -85,50 +84,54 @@ class TwilioCallSession:
     def __init__(self, ws, client: Client, remote_host: str, phone_number=None):
         self.ws = ws
         self.client = client
-        self.sst_stream = DeepgramStream()  # WhisperTwilioStream()
+        self.sst_stream = DeepgramStream()
         self.remote_host = remote_host
         self._call = None
         self.phone_number = phone_number
         self.stream_sid = None
-        self.is_playing = False
+        self.is_streaming = True
 
     def media_stream_connected(self):
         return self._call is not None
 
     def _read_ws(self):
-        # TODO: add closure of deepgram socket.
-        while True:
-            try:
-                message = self.ws.receive()
-            except simple_websocket.ws.ConnectionClosed:
-                logging.warn("Call media stream connection lost.")
-                break
-            if message is None:
-                logging.warn("Call media stream closed.")
-                break
+        try:
+            while True:
+                try:
+                    message = self.ws.receive()
+                except simple_websocket.ws.ConnectionClosed:
+                    logging.warn("Call media stream connection lost.")
+                    break
+                if message is None:
+                    logging.warn("Call media stream closed.")
+                    break
 
-            data = json.loads(message)
-            if data["event"] == "start":
-                logging.info("Call connected, " + str(data["start"]))
-                self._call = self.client.calls(data["start"]["callSid"])
-                self.stream_sid = data["start"][
-                    "streamSid"
-                ]  # Fix: Assign streamSid correctly
+                data = json.loads(message)
+                if data["event"] == "start":
+                    logging.info("Call connected, " + str(data["start"]))
+                    self._call = self.client.calls(data["start"]["callSid"])
+                    self.stream_sid = data["start"][
+                        "streamSid"
+                    ]  # Fix: Assign streamSid correctly
 
-            elif data["event"] == "media":
-                media = data["media"]
-                chunk = base64.b64decode(media["payload"])
-                if self.sst_stream.stream is not None:
-                    self.sst_stream.stream.write(chunk)
-
-                #    self.sst_stream.stream.write(audioop.ulaw2lin(chunk, 2))
-            elif data["event"] == "stop":
-                logging.info("Call media stream ended.")
-                break
+                elif data["event"] == "media":
+                    media = data["media"]
+                    chunk = base64.b64decode(media["payload"])
+                    if self.sst_stream.stream is not None and not self.is_streaming:
+                        self.sst_stream.stream.write(chunk)
+                elif data["event"] == "stop":
+                    logging.info("Call media stream ended.")
+                    break
+        except simple_websocket.ws.ConnectionClosed:
+            logging.warn("Call media stream connection lost.")
+        finally:
+            # Ensure the DeepgramStream is closed when the WebSocket connection is closed
+            self.sst_stream.close()
 
     def stream_elevenlabs(self, text: str):
         # Step 1: get the streamSid, which is a unique identifier of the stream
         stream_sid = self.stream_sid
+        duration = 0
         if not stream_sid:
             logging.error("No stream SID available. Cannot send audio.")
             return  # Exit if stream_sid is not set
@@ -142,11 +145,15 @@ class TwilioCallSession:
             model="eleven_turbo_v2",
             output_format="ulaw_8000",
         )
+
         # Consume the generator and send audio chunks immediately
         for chunk in audio_generator:
             if not chunk:
                 logging.error("No audio generated from ElevenLabs.")
                 return  # Exit if no audio is generated
+            num_samples = len(chunk)
+            chunk_duration = num_samples / 8000
+            duration += chunk_duration
 
             audio_base64 = base64.b64encode(chunk).decode("utf-8")
 
@@ -158,9 +165,13 @@ class TwilioCallSession:
             }
             try:
                 self.ws.send(json.dumps(message))
-                logging.info("WebSocket message sent successfully.")
             except Exception as e:
                 logging.error(f"Failed to send WebSocket message: {e}")
+
+        self.is_streaming = True
+        time.sleep(duration)
+        print("Read yfor caller's message")
+        self.is_streaming = False
 
     def start_session(self):  # Fix: Adjusted indentation
         self._read_ws()

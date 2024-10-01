@@ -9,11 +9,11 @@ import os
 import time
 import sys
 from agents import TwilioCaller, AIAgent
-from audio_input import get_whisper_model
 from twilio_io import TwilioServer
 from conversation import run_conversation
 from pyngrok import ngrok
 from utils import get_member_information
+from datetime import datetime
 
 port = 8080
 remote_host = "adapted-commonly-jennet.ngrok-free.app"
@@ -33,7 +33,12 @@ def run_chat(sess, phone_number):
     ai_agent = None
     member_agent = None
     # get member information
+
     member_information = get_member_information(phone_number)
+    now = datetime.now()
+    formatted_time = now.strftime("%A, %B %d, %I:%M%p")
+    print(f"formatted time is {formatted_time}")
+
     try:
         system_message = f"""
         You are a call center agent at Signify Health. You have received a call from a call from a member. \
@@ -56,6 +61,8 @@ def run_chat(sess, phone_number):
         
         Use the following member's information to help the member.
         {member_information}
+
+        The current date and time is {formatted_time}
         """
         init_phrase = "Thank you for calling Signify. My name is Sarah. Can you verify your name please?"
 
@@ -64,9 +71,9 @@ def run_chat(sess, phone_number):
             sess,
             # thinking_phrase="One moment"
         )
+
         while not member_agent.session.media_stream_connected():
             time.sleep(0.1)
-
         run_conversation(ai_agent, member_agent, member_information)
 
     finally:
