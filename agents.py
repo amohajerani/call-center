@@ -25,12 +25,12 @@ class TerminalInPrintOut(ChatAgent):
 class AIAgent(ChatAgent):
     def __init__(
         self,
-        system_message: str,
         init_phrase: Optional[str] = None,
+        phone_number='',
     ):
         self.init_phrase = init_phrase
         self.url = "http://localhost:5001/run_agent"  # "http://probable-instantly-crab.ngrok-free.app/run_agent"
-        self.system_message = system_message
+        self.phone_number=phone_number
 
     def get_response(self, transcript: List[str]) -> str:
         if len(transcript) > 0:
@@ -38,8 +38,8 @@ class AIAgent(ChatAgent):
                 res = requests.post(
                     self.url,
                     json={
-                        "system_message": self.system_message,
                         "transcript": transcript,
+                        "phone_number":self.phone_number
                     },
                 )
                 response = res.json()["result"]
